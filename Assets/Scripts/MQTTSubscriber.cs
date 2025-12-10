@@ -2,117 +2,91 @@ using UnityEngine;
 using uPLibrary.Networking.M2Mqtt;
 using uPLibrary.Networking.M2Mqtt.Messages;
 using System.Text;
-using System.Collections.Generic;
 
+/// <summary>
+/// The MQTTSubscriber acts as the Controller within the MVC architecture.
+/// It connects to an MQTT broker, listens for incoming raw BCI emotional data,
+/// and forwards the received JSON payloads to the UnityBlackboard.
+/// 
+/// Since MQTT callbacks occur on a background thread, this class uses the
+/// UnityMainThreadDispatcher to safely forward work back onto the Unity main thread,
+/// ensuring compliance with Unity's threading restrictions.
+/// </summary>
 public class MQTTSubscriber : MonoBehaviour
 {
+    /// <summary>
+    /// The hostname or IP address of the MQTT broker providing the emotion data.
+    /// </summary>
     public string broker = "broker.hivemq.com";
+
+    /// <summary>
+    /// Port number for the MQTT broker connection (typically 1883 for non-SSL).
+    /// </summary>
     public int port = 1883;
+
+    /// <summary>
+    /// Topic string on which this subscriber listens for emotion data packets.
+    /// Example: "bci/emotions"
+    /// </summary>
     public string topic = "bci/emotions";
 
+    /// <summary>
+    /// MQTT client instance that manages the connection and message reception.
+    /// </summary>
     private MqttClient client;
-    private Renderer cubeRenderer;
 
-    private string pendingEmotion = null;
-    private readonly object lockObj = new object();
+    /// <summary>
+    /// Reference to the UnityBlackboard, which receives and processes incoming emotion JSON.
+    /// </summary>
+    private UnityBlackboard blackboard;
 
-    [System.Serializable]
-    public class EmotionData
-    {
-        public float happy;
-        public float sad;
-        public float angry;
-        public float calm;
-        public float fear;
-        public float surprise;
-    }
-
+    /// <summary>
+    /// Unity Start() callback.
+    /// Discovers the Blackboard, initializes the MQTT client, connects to the broker,
+    /// and subscribes to the configured topic.
+    /// </summary>
     void Start()
     {
-        cubeRenderer = GetComponent<Renderer>();
+        // Locate the single active Blackboard instance in the scene
+        blackboard = FindObjectOfType<UnityBlackboard>();
+        if (blackboard == null)
+        {
+            Debug.LogError("UnityBlackboard not found in scene!");
+            return;
+        }
 
-        // M2Mqtt constructor (host, port, secure=false, cert=null, cert=null, sslprotocol default)
+        // Create MQTT client and assign message callback
         client = new MqttClient(broker, port, false, null, null, MqttSslProtocols.None);
-
         client.MqttMsgPublishReceived += OnMessageReceived;
 
+        // Connect using a unique client ID
         string clientId = System.Guid.NewGuid().ToString();
         client.Connect(clientId);
 
+        // Subscribe to the target topic with QoS 0 (at most once delivery)
         client.Subscribe(new string[] { topic }, new byte[] { MqttMsgBase.QOS_LEVEL_AT_MOST_ONCE });
 
-        Debug.Log("M2Mqtt connected + subscribed!");
+        Debug.Log("MQTTSubscriber connected & subscribed.");
     }
 
-    void OnMessageReceived(object sender, MqttMsgPublishEventArgs e)
+    /// <summary>
+    /// Callback executed whenever a message arrives on the subscribed MQTT topic.
+    /// This is invoked on a background MQTT thread, so Unity API calls are not allowed here.
+    /// Instead, the JSON payload is forwarded via UnityMainThreadDispatcher to be processed
+    /// safely on the Unity main thread.
+    /// </summary>
+    /// <param name="sender">MQTT client instance that received the message.</param>
+    /// <param name="e">Event arguments containing the topic and message payload.</param>
+    private void OnMessageReceived(object sender, MqttMsgPublishEventArgs e)
     {
+        // Convert byte payload into UTF-8 JSON string
         string json = Encoding.UTF8.GetString(e.Message);
 
-        EmotionData data = JsonUtility.FromJson<EmotionData>(json);
-        string dom = GetDominantEmotion(data);
-
-        lock (lockObj)
+        // Forward JSON to Blackboard on the Unity main thread
+        UnityMainThreadDispatcher.Enqueue(() =>
         {
-            pendingEmotion = dom;
-        }
-    }
-
-    void Update()
-    {
-        string emotion = null;
-
-        lock (lockObj)
-        {
-            if (pendingEmotion != null)
-            {
-                emotion = pendingEmotion;
-                pendingEmotion = null;
-            }
-        }
-
-        if (emotion != null)
-        {
-            cubeRenderer.material.color = EmotionColor(emotion);
-        }
-    }
-
-    private string GetDominantEmotion(EmotionData d)
-    {
-        var dict = new Dictionary<string, float>
-        {
-            {"happy", d.happy},
-            {"sad", d.sad},
-            {"angry", d.angry},
-            {"calm", d.calm},
-            {"fear", d.fear},
-            {"surprise", d.surprise}
-        };
-
-        string best = "none";
-        float max = float.NegativeInfinity;
-
-        foreach (var kvp in dict)
-        {
-            if (kvp.Value > max)
-            {
-                max = kvp.Value;
-                best = kvp.Key;
-            }
-        }
-        return best;
-    }
-
-    private Color EmotionColor(string e)
-    {
-        return e switch
-        {
-            "happy" => Color.yellow,
-            "sad" => Color.blue,
-            "angry" => Color.red,
-            "calm" => Color.cyan,
-            "fear" => new Color(0.4f, 0f, 0.4f),
-            "surprise" => Color.magenta,
-            _ => Color.gray,
-        };
+            if (blackboard != null)
+                blackboard.PushEmotionJson(json);
+        });
     }
 }
