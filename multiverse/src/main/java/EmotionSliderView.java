@@ -22,8 +22,6 @@ public class EmotionSliderView extends JPanel {
     private JSlider calmSlider;
     private JSlider stressSlider;
 
-    private JTextField clientId;
-
     /**
      * Constructs the emotion slider view and initializes UI components.
      */

@@ -8,7 +8,7 @@ import java.beans.PropertyChangeSupport;
 public class EmotionBlackboard {
 
     private static EmotionBlackboard instance;
-    private static String clientId = "joelp";
+    private String clientId = "joelp";
     private EmotionState emotionState;
     private final PropertyChangeSupport pcs;
 
