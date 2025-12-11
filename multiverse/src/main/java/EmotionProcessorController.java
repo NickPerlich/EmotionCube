@@ -1,4 +1,5 @@
 /**
+ * Authors: Joel Puthankalam, Tymon Vu, Nick Perlich
  * Processes raw emotion input and updates the blackboard.
  */
 public class EmotionProcessorController {

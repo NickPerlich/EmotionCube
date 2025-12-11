@@ -2,12 +2,13 @@ import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
 
 /**
+ * Authors: Joel Puthankalam, Tymon Vu, Nick Perlich
  * Singleton blackboard for storing and broadcasting emotion state.
  */
 public class EmotionBlackboard {
 
     private static EmotionBlackboard instance;
-
+    private static String clientId = "joelp";
     private EmotionState emotionState;
     private final PropertyChangeSupport pcs;
 
@@ -39,6 +40,21 @@ public class EmotionBlackboard {
         EmotionState oldState = this.emotionState;
         this.emotionState = newState;
         pcs.firePropertyChange("emotionState", oldState, newState);
+    }
+
+    /**
+     * Returns the clientID
+     *
+     */
+    public String getClientId() {
+        return clientId;
+    }
+
+    public void setClientId(String clientId) {
+        System.out.println(clientId);
+        String oldClientId = this.clientId;
+        this.clientId = clientId;
+        pcs.firePropertyChange("clientId", oldClientId, clientId);
     }
 
     /**

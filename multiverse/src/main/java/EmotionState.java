@@ -1,4 +1,5 @@
 /**
+ * Authors: Joel Puthankalam, Tymon Vu, Nick Perlich
  * Immutable snapshot representing the current emotional state.
  *
  * <p>This class serves as a lightweight domain object used to transport
@@ -7,7 +8,6 @@
  * publication.</p>
  */
 public class EmotionState {
-
     private final double focus;
     private final double calm;
     private final double stress;

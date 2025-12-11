@@ -1,65 +1,198 @@
-using UnityEngine;
 using System;
+using UnityEditor;
+using UnityEngine;
 
-/// <summary>
-/// The UnityBlackboard acts as the central shared knowledge hub in the system.
-/// It receives raw emotion data from external sources (e.g., MQTTSubscriber),
-/// processes it using the DataProcessor, determines the dominant interpreted
-/// emotional state, and notifies all registered observers.
-/// 
-/// This class serves as the "Model" in the MVC architecture and the core
-/// coordination mechanism in the Blackboard Pattern, where multiple independent
-/// components can read from and react to shared state.
-/// </summary>
-public class UnityBlackboard : MonoBehaviour
+
+// Authors: Joel Puthankalam, Tymon Vu, Nick Perlich
+// Blackboard object that manages global data
+// Is an observable for emotion changes
+
+public class Blackboard : MonoBehaviour
 {
-    /// <summary>
-    /// Event triggered whenever the interpreted emotional state changes.
-    /// Observers (e.g., CubePanel) register callbacks to respond to emotion updates.
-    /// The string parameter represents the dominant emotion label
-    /// (e.g., "Happy", "Sad", "Upset", "Stress", "Fear").
-    /// </summary>
-    public event Action<string> OnEmotionChanged;
+    // -------------------------
+    //  Singleton Implementation
+    // -------------------------
+
+    private static readonly Lazy<Blackboard> _instance =
+        new Lazy<Blackboard>(() => new Blackboard());
+
+    public static Blackboard Instance => _instance.Value;
+
+    private Blackboard() { }  // Private constructor ensures singleton
+
+
+    // -------------------------
+    //  Blackboard Event System
+    // -------------------------
 
     /// <summary>
-    /// Tracks the most recent dominant emotion to prevent duplicate notifications.
+    /// Event fired whenever the dominant interpreted emotion changes.
+    /// Observers subscribe to this to react to system state updates.
     /// </summary>
-    private string currentEmotion = "none";
+    public event Action<int, string> OnEmotionChanged;
+    public event Action<int> OnPlayerAdded;
+    public event Action<int> OnPlayerRemoved;
+    public event Action<int> OnLocalClientResolved;
+
+    public string LocalClientId { get; private set; }
+
+    private string grokAPIKey = "";
+    private string[] playerEmotions = new string[4];
+    private string[] players = new string[4];
+    private static int numPlayers = 0;
+
+    private static Boolean isInitialized = false;
+
+
+    // -------------------------
+    //  Public API
+    // -------------------------
 
     /// <summary>
-    /// Receives raw JSON emotion data (typically from MQTTSubscriber),
-    /// delegates parsing and emotion derivation to the DataProcessor,
-    /// determines the dominant interpreted emotion, and broadcasts it
-    /// to all registered observers if it has changed.
+    /// Pushes new JSON emotion data into the blackboard.  
+    /// The data is processed to determine the dominant emotional state.
+    /// If the dominant state changes, observers are notified.
     /// </summary>
-    /// <param name="json">A JSON string containing raw BCI metrics such as focus, calm, and stress.</param>
-    public void PushEmotionJson(string json)
+    /// <param name="json">
+    /// <param name="slotIndex">"
+    /// Raw BCI metrics (e.g., focus, calmness, stress) encoded as JSON.
+    /// </param>
+    public void PushEmotionJson(string json, int slotIndex)
     {
+        if (slotIndex < 0 || slotIndex >= playerEmotions.Length)
+        {
+            Debug.Log("[Blackboard] Invalid slot index!");
+            return;
+        }
+
+
         var raw = DataProcessor.ParseBCI(json);
         var processed = DataProcessor.ComputeEmotion(raw);
         string dominant = DataProcessor.GetDominantEmotion(processed);
 
-        // Only notify if the emotion is different from last update
-        if (dominant != currentEmotion)
+        Debug.Log($"[Blackboard] Slot {slotIndex} - Dominant Emotion: {dominant}");
+
+        string currentEmotion = playerEmotions[slotIndex];
+
+        Debug.Log($"[Blackboard] Current Emotion {currentEmotion}");
+
+        if (dominant != currentEmotion && isInitialized)
         {
-            currentEmotion = dominant;
-            OnEmotionChanged?.Invoke(dominant);
+           Debug.Log($"[Blackboard] Emotion changed for slot {slotIndex}: {currentEmotion} -> {dominant}");
+            playerEmotions[slotIndex] = dominant;
+            OnEmotionChanged?.Invoke(slotIndex,dominant);
         }
+        
     }
 
     /// <summary>
-    /// Registers a new observer callback that will be invoked every time
-    /// the dominant interpreted emotion changes.
-    /// 
-    /// This enables loose coupling between components, as observers
-    /// do not need direct references to the publisher or to each other.
+    /// Sets the local client ID for this instance.
     /// </summary>
-    /// <param name="observer">
-    /// A method that accepts a string emotion name to respond to updates.
-    /// Example: UpdateCubeColor("Happy")
-    /// </param>
-    public void RegisterObserver(Action<string> observer)
+    /// <param name="clientId"></param>
+    public void SetLocalClientId(string clientId)
+    {
+        LocalClientId = clientId;
+    }
+
+    /// <summary>
+    /// Sets the Grok API key for this instance.
+    /// </summary>
+    /// <param name="apiKey"></param>
+    public void SetGrokApiKey(string apiKey)
+    {
+        grokAPIKey = apiKey;
+    }
+
+    /// <summary>
+    /// Gets the Grok API key for this instance (used by chatbotbrain).
+    /// </summary>
+    /// <returns></returns>
+    public string GetGrokAPIKey()
+    {
+        return grokAPIKey;
+    }
+
+    /// <summary>
+    /// Gets or adds a player by client ID.
+    /// </summary>
+    /// <param name="clientId"></param>
+    /// <returns></returns>
+    public int GetOrAddPlayer(string clientId)
+    {
+
+        // check if we have the localclientid
+        if (LocalClientId == clientId)
+        {
+            for (int i = 0; i < numPlayers; i++)
+            {
+                if (players[i] == clientId)
+                {
+                    Debug.Log("[Blackboard] Local client already assigned to slot " + i);
+                    if (isInitialized == false)
+                    {
+                        isInitialized = true;
+                        Debug.Log("[Blackboard] Firing OnLocalClientResolved for slot " + i);
+                        OnLocalClientResolved?.Invoke(i);
+                    }
+                    
+                    return i;
+                }
+            }
+        }
+
+        // check if we already have the client id
+        for (int i = 0; i < numPlayers; i++)
+        {
+            if (players[i] == clientId)
+            {
+                return i;
+            }
+        }
+        // if not lets add them if space
+        if (numPlayers >= players.Length)
+        {
+            return -1;
+        }
+
+        int playerId = numPlayers;
+        players[numPlayers] = clientId;
+        numPlayers += 1;
+        OnPlayerAdded?.Invoke(playerId);
+        return playerId;
+        
+    }
+    /// <summary>
+    /// Removes a player by client ID.
+    /// </summary>
+    /// <param name="clientId"></param>
+    public void RemovePlayer(string clientId)
+    {
+        for (int i = 0; i < numPlayers; i++)
+        {
+            if (players[i] == clientId)
+            {
+                players[i] = null;
+                OnPlayerRemoved?.Invoke(i);
+                break;
+            }
+        }
+    }
+
+   
+    /// <summary>
+    /// Registers an observer callback to be notified whenever the
+    /// interpreted emotional state changes.
+    /// </summary>
+    public void RegisterObserver(Action<int, string> observer)
     {
         OnEmotionChanged += observer;
+    }
+
+    /// <summary>
+    /// Removes a previously registered observer.
+    /// </summary>
+    public void UnregisterObserver(Action<int, string> observer)
+    {
+        OnEmotionChanged -= observer;
     }
 }

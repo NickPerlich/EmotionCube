@@ -3,7 +3,8 @@ import javax.swing.event.ChangeListener;
 import java.awt.*;
 
 /**
- * Swing-based view providing sliders for user-controlled emotion input.
+ *  Authors: Joel Puthankalam, Tymon Vu, Nick Perlich
+ *  Swing-based view providing sliders for user-controlled emotion input.
  *
  * <p>This class is responsible solely for rendering the UI components
  * and reporting finalized emotion values through an
@@ -20,6 +21,8 @@ public class EmotionSliderView extends JPanel {
     private JSlider focusSlider;
     private JSlider calmSlider;
     private JSlider stressSlider;
+
+    private JTextField clientId;
 
     /**
      * Constructs the emotion slider view and initializes UI components.

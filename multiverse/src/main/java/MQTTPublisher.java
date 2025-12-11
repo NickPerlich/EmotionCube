@@ -1,11 +1,13 @@
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import org.eclipse.paho.client.mqttv3.*;
 
 /**
+ * Authors: Joel Puthankalam, Tymon Vu, Nick Perlich
  * Publishes emotion state updates to an MQTT broker on a separate thread.
  *
  * <p>This class observes the {@link EmotionBlackboard} for emotion state
@@ -26,7 +28,7 @@ public class MQTTPublisher implements PropertyChangeListener, Runnable {
     public static final String TOPIC = "bci/emotions";
 
     /** MQTT client identifier. */
-    public static final String ID = "tymonvu";
+    public static final String ID = UUID.randomUUID().toString();
 
     private final BlockingQueue<EmotionState> queue = new LinkedBlockingQueue<>();
     private IMqttClient client;
@@ -110,7 +112,8 @@ public class MQTTPublisher implements PropertyChangeListener, Runnable {
      */
     private String serialize(EmotionState state) {
         return String.format(
-                "{ \"focus\": %.2f, \"calm\": %.2f, \"stress\": %.2f }",
+                "{ \"clientId\": \"%s\", \"focus\": %.2f, \"calm\": %.2f, \"stress\": %.2f }",
+                EmotionBlackboard.getInstance().getClientId(),
                 state.getFocus(),
                 state.getCalm(),
                 state.getStress()

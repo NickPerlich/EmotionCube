@@ -1,4 +1,6 @@
 /**
+ *
+ * Authors: Joel Puthankalam, Tymon Vu, Nick Perlich
  * Listener implementation that receives emotion change events from the UI.
  *
  * <p>This class acts as a bridge between the emotion slider view and the
@@ -34,4 +36,5 @@ public class EmotionInputListener implements EmotionChangeListener {
     public void onEmotionChanged(double focus, double calm, double stress) {
         controller.processEmotionInput(focus, calm, stress);
     }
+
 }

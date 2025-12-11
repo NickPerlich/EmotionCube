@@ -1,71 +1,68 @@
 using UnityEngine;
 
-/// <summary>
-/// The CubePanel acts as the View in the MVC architecture.
-/// It observes the UnityBlackboard for emotion updates and reflects
-/// those emotions visually by changing the cube's color.
-/// 
-/// Responsibilities:
-/// - Register itself as an observer of the UnityBlackboard
-/// - Update cube material color when the interpreted emotion changes
-/// - Log emotion transitions for debugging and verification
-/// </summary>
+// Authors: Joel Puthankalam, Tymon Vu, Nick Perlich
+// CubePanel that represents a player's emotional state
+// Listens to a blackboard event when the emotion changes
+
 public class CubePanel : MonoBehaviour
 {
-    /// <summary>
-    /// Cached reference to the cube's Renderer component.
-    /// Used to apply color changes based on emotional state.
-    /// </summary>
+    [Header("Which player slot does this cube represent? (0–3)")]
+    [SerializeField] private int slotIndex = 0;
+
+    // used by the CubeManager to add a cube at a given slot
+    public int SlotIndex            
+    {
+        get => slotIndex;
+        set => slotIndex = value;
+    }
+
     private Renderer cubeRenderer;
 
     /// <summary>
-    /// Unity Start() callback.
-    /// Initializes renderer reference and registers this panel
-    /// as an observer of the UnityBlackboard.
+    /// Initialize and subscribe to blackboard emotion change events
     /// </summary>
-    void Start()
+    private void Start()
     {
         cubeRenderer = GetComponent<Renderer>();
-
-        // Auto-discover the active Blackboard instance in the scene
-        UnityBlackboard bb = FindObjectOfType<UnityBlackboard>();
-        if (bb == null)
-        {
-            Debug.LogError("UnityBlackboard not found in scene!");
-            return;
-        }
-
-        // Register callback to respond to emotion changes
-        bb.RegisterObserver(UpdateCubeColor);
+        Blackboard.Instance.OnEmotionChanged += HandleEmotionChanged;
     }
 
     /// <summary>
-    /// Callback invoked by UnityBlackboard whenever the interpreted
-    /// emotional state changes. Updates cube color and prints debug information.
+    /// Cleanup event subscriptions
     /// </summary>
-    /// <param name="emotion">The interpreted emotional state (e.g., "Happy", "Sad")</param>
-    private void UpdateCubeColor(string emotion)
+    private void OnDestroy()
     {
-        cubeRenderer.material.color = EmotionColor(emotion);
-        Debug.Log("MQTT SUBSCRIBE: {New Emotion: " + emotion + "}");
+        Blackboard.Instance.OnEmotionChanged -= HandleEmotionChanged;
     }
 
     /// <summary>
-    /// Maps emotion labels to specific colors for visualization.
-    /// Modify this method to adjust emotional color styling.
+    /// Handle emotion change events from the blackboard
     /// </summary>
-    /// <param name="emotion">Emotion name being visualized.</param>
-    /// <returns>A UnityEngine.Color representing the emotion.</returns>
+    /// <param name="idx"></param>
+    /// <param name="emotion"></param>
+    private void HandleEmotionChanged(int idx, string emotion)
+    {
+        Debug.Log(EmotionColor(emotion));
+        if (idx != slotIndex)
+            return;
+
+        cubeRenderer.material.color = EmotionColor(emotion);
+        Debug.Log($"[CubePanel slot {slotIndex}] Emotion changed -> {emotion}");
+    }
+
+    /// <summary>
+    /// Get the color associated with a given emotion
+    /// </summary>
+    /// <param name="emotion"></param>
+    /// <returns></returns>
     private Color EmotionColor(string emotion)
     {
         return emotion switch
         {
-            "Happy"  => Color.yellow,
-            "Sad"    => Color.blue,
-            "Upset"  => new Color(1f, 0.3f, 0.3f),
+            "Focus" => Color.yellow,
+            "Calm" => Color.blue,
             "Stress" => Color.red,
-            "Fear"   => new Color(0.4f, 0f, 0.4f),
-            _        => Color.gray,
+            _ => Color.gray,
         };
     }
 }

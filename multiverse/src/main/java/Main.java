@@ -1,6 +1,8 @@
 import javax.swing.*;
+import java.awt.*;
 
 /**
+ * Authors: Joel Puthankalam, Tymon Vu, Nick Perlich
  * Application entry point for the BCI Emotion Simulator.
  *
  * <p>This class is responsible solely for assembling and wiring together
@@ -25,6 +27,7 @@ public class Main {
         SwingUtilities.invokeLater(() -> {
             JFrame frame = new JFrame("BCI Emotion Simulator");
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            frame.setLayout(new BorderLayout());
 
             EmotionSliderView view = new EmotionSliderView();
             EmotionProcessorController controller = new EmotionProcessorController();
@@ -32,10 +35,13 @@ public class Main {
 
             view.setEmotionChangeListener(listener);
 
+            ClientIdPanel clientIdPanel = new ClientIdPanel();
+
             MQTTPublisher publisher = new MQTTPublisher();
             new Thread(publisher, "MQTT-Publisher").start();
 
-            frame.add(view);
+            frame.add(clientIdPanel, BorderLayout.NORTH);
+            frame.add(view,  BorderLayout.CENTER);
             frame.pack();
             frame.setVisible(true);
         });

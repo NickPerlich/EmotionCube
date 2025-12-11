@@ -1,4 +1,5 @@
 /**
+ * Authors: Joel Puthankalam, Tymon Vu, Nick Perlich
  * Listener interface for emotion slider changes.
  */
 public interface EmotionChangeListener {
@@ -11,4 +12,5 @@ public interface EmotionChangeListener {
      * @param stress stress value (0.0 - 1.0)
      */
     void onEmotionChanged(double focus, double calm, double stress);
+
 }
