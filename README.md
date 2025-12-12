@@ -1,5 +1,7 @@
 # CSC 508 Final Project: Emotion Cube - Joel Puthankalam, Tymon Vu, and Nicholas Perlich
 
+Our final video is located in either `Final Project Video.mp4` or can be seen within the Youtube Link (https://youtu.be/hKCAz2KY1d8)
+
 ## Emotion Cube
 
 EmotionCube is an interactive system that connects a Java-based emotion slider interface with a Unity 3D visualization. Users adjust sliders for focus, stress, and calm, and those values are sent to Unity, where a cube in the scene dynamically changes color based on the dominant emotion. The system also integrates the Grok API, generating context-aware responses or guidance tailored to the user’s current emotional state.
@@ -24,7 +26,7 @@ The UML Diagram for the workflow for this project. The left hand side shows the 
 
 ## How To Run
 
-To run java application program (BCI Simulator), in `multiverse` root directory: 
+To run java application program (BCI Simulator), in `EmotionCubeBCISimulator` root directory, make sure you have Maven installed and run:
 
 ```
 mvn -q clean compile
@@ -37,7 +39,7 @@ Then, to run the Unity application program (EmotionCube view):
 
 1. Install [Unity Hub](https://unity.com/download)
 2. Install Unity 6 within Unity Hub (we used `Unity6000.0.36f1` because of LTS support)
-2. Open project to Unity 6 (Make sure to download project and within Unity Hub, do `Add project from disk`)
+2. Open project (specifically `EmotionCubeUnity`) to Unity 6 (Make sure to download project and within Unity Hub, do `Add project from disk`)
 
 ![Unity Instructions](./images/unityinstruct.png)
 
